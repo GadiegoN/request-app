@@ -45,7 +45,10 @@ export default function Home() {
             />
             Mostrar senha
           </label>
-          <Link href="/dashboard" className="w-full flex items-center justify-center h-12 rounded-lg bg-sky-600 font-semibold text-white hover:bg-sky-700">
+          <Link
+            href="/dashboard/shopping"
+            className="w-full flex items-center justify-center h-12 rounded-lg bg-sky-600 font-semibold text-white hover:bg-sky-700"
+          >
             Entrar
           </Link>
         </div>
