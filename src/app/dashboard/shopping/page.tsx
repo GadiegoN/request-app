@@ -1,4 +1,6 @@
 'use client'
+import { AuthContext } from '@/context/auth-context'
+import { api } from '@/services/api'
 import {
     Column,
     ColumnDef,
@@ -11,7 +13,8 @@ import {
     getSortedRowModel,
     useReactTable,
 } from '@tanstack/react-table'
-import { useEffect, useMemo, useReducer, useState } from 'react'
+import { LogOut } from 'lucide-react'
+import { useContext, useEffect, useMemo, useReducer, useState } from 'react'
 
 declare module '@tanstack/react-table' {
     interface ColumnMeta<TData extends RowData, TValue> {
@@ -19,103 +22,126 @@ declare module '@tanstack/react-table' {
     }
 }
 
-type Person = {
-    firstName: string
-    lastName: string
-    age: number
-    visits: number
-    status: string
-    progress: number
+interface DepartmentProps {
+    id: string
+    name: string
 }
 
-const defaultData: Person[] = [
-    {
-        firstName: 'tanner',
-        lastName: 'linsley',
-        age: 24,
-        visits: 100,
-        status: 'In Relationship',
-        progress: 50,
+interface AproverProps {
+    id: string,
+    name: string,
+    email: string
+}
+
+interface ProductDetails {
+    id: string;
+    code: string;
+    un: string;
+    description: string;
+}
+
+interface Product {
+    product: ProductDetails;
+    quantity: string;
+    price: string;
+    status: string;
+}
+
+
+type PurchaseProps = {
+    id: string,
+    requester: {
+        id: string,
+        name: string,
+        email: string
     },
-    {
-        firstName: 'tandy',
-        lastName: 'miller',
-        age: 40,
-        visits: 40,
-        status: 'Single',
-        progress: 80,
-    },
-    {
-        firstName: 'joe',
-        lastName: 'dirte',
-        age: 45,
-        visits: 20,
-        status: 'Complicated',
-        progress: 10,
-    },
-]
+    approver: AproverProps,
+    department: DepartmentProps,
+    products: Product[],
+    company: string,
+    created_at: string,
+    request_date: string,
+    motive: string,
+    obs: string,
+    status: string,
+    approval_date: string,
+    has_quotation: boolean,
+    quotation_emails: string,
+    quotation_date: string,
+    control_number: number
+}
 
 export default function Page() {
-    const rerender = useReducer(() => ({}), {})[1]
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
-        []
-    )
+    const { logout, user } = useContext(AuthContext)
+    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+    const [listPurchase, setListPurchase] = useState<PurchaseProps[]>(() => [])
 
-    const columns = useMemo<ColumnDef<Person, any>[]>(
+    const columns = useMemo<ColumnDef<PurchaseProps, any>[]>(
         () => [
             {
-                accessorKey: 'firstName',
+                accessorFn: row => row.company,
+                id: 'company',
+                header: 'Empresa',
                 cell: info => info.getValue(),
             },
             {
-                accessorFn: row => row.lastName,
-                id: 'lastName',
-                cell: info => info.getValue(),
-                header: () => <span>Last Name</span>,
-            },
-            {
-                accessorFn: row => `${row.firstName} ${row.lastName}`,
-                id: 'fullName',
-                header: 'Full Name',
+                accessorFn: row => row.department.name,
+                id: 'department',
+                header: 'Departamento',
                 cell: info => info.getValue(),
             },
             {
-                accessorKey: 'age',
-                header: () => 'Age',
+                accessorFn: row => row.control_number,
+                accessorKey: 'control_number',
+                header: () => 'Numero de controle',
                 meta: {
                     filterVariant: 'range',
                 },
             },
             {
-                accessorKey: 'visits',
-                header: () => <span>Visits</span>,
+                accessorKey: 'created_at',
+                header: () => <span>Data</span>,
                 meta: {
-                    filterVariant: 'range',
+                    filterVariant: 'text',
+                },
+            },
+            {
+                accessorKey: 'request_date',
+                header: () => <span>Data de solicitação</span>,
+                meta: {
+                    filterVariant: 'text',
                 },
             },
             {
                 accessorKey: 'status',
-                header: 'Status',
+                header: () => <span>Status</span>,
                 meta: {
                     filterVariant: 'select',
                 },
             },
             {
-                accessorKey: 'progress',
-                header: 'Profile Progress',
+                accessorFn: row => row.products[0].price,
+                accessorKey: 'products',
+                header: () => <span>Preço Total</span>,
                 meta: {
-                    filterVariant: 'range',
+                    filterVariant: 'text',
+                },
+            },
+            {
+                accessorFn: row => row.obs,
+                accessorKey: 'obs',
+                header: () => <span>Obsercações</span>,
+                meta: {
+                    filterVariant: 'text',
                 },
             }
         ],
         []
     )
 
-    const [data, setData] = useState<Person[]>(() => defaultData)
-    const refreshData = () => setData(_old => defaultData) //stress test
-
+    const [_data, setData] = useState(() => [...listPurchase])
     const table = useReactTable({
-        data,
+        data: listPurchase,
         columns,
         filterFns: {},
         state: {
@@ -123,7 +149,7 @@ export default function Page() {
         },
         onColumnFiltersChange: setColumnFilters,
         getCoreRowModel: getCoreRowModel(),
-        getFilteredRowModel: getFilteredRowModel(), //client side filtering
+        getFilteredRowModel: getFilteredRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
         debugTable: true,
@@ -131,10 +157,35 @@ export default function Page() {
         debugColumns: false,
     })
 
+    async function getPurchases() {
+        try {
+            const response = await api.get('/purchases/')
+
+            const purchaseParams: PurchaseProps[] = response.data.results
+            setListPurchase(purchaseParams)
+
+
+            console.log(response.data.results[0])
+        } catch (error) {
+            console.log(error)
+        }
+
+    }
+
+    useEffect(() => {
+        getPurchases()
+    }, [])
+
     return (
         <div className="p-8 max-w-md md:max-w-xl lg:max-w-3xl xl:max-w-5xl 2xl:max-w-full">
             <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold">Olá, Gadiego JN</h2>
+                <div className="flex items-center gap-8">
+                    <h2 className="text-2xl font-bold select-none">Olá, {user?.email}</h2>
+                    <button onClick={logout} className='flex items-center gap-2 border text-sky-900 border-sky-700 p-2 hover:bg-gray-300 rounded-lg'>
+                        <LogOut className="size-5" />
+                        Sair
+                    </button>
+                </div>
                 <button className="flex items-center justify-center h-12 rounded-lg bg-sky-600 font-semibold text-white hover:bg-sky-700 px-4">
                     Nova Requisição
                 </button>
@@ -199,81 +250,7 @@ export default function Page() {
                     </tbody>
                 </table>
                 <div className="h-2" />
-                <div className="flex items-center gap-2">
-                    <button
-                        className="border rounded p-1"
-                        onClick={() => table.setPageIndex(0)}
-                        disabled={!table.getCanPreviousPage()}
-                    >
-                        {'<<'}
-                    </button>
-                    <button
-                        className="border rounded p-1"
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                    >
-                        {'<'}
-                    </button>
-                    <button
-                        className="border rounded p-1"
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                    >
-                        {'>'}
-                    </button>
-                    <button
-                        className="border rounded p-1"
-                        onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                        disabled={!table.getCanNextPage()}
-                    >
-                        {'>>'}
-                    </button>
-                    <span className="flex items-center gap-1">
-                        <div>Page</div>
-                        <strong>
-                            {table.getState().pagination.pageIndex + 1} of{' '}
-                            {table.getPageCount()}
-                        </strong>
-                    </span>
-                    <span className="flex items-center gap-1">
-                        | Go to page:
-                        <input
-                            type="number"
-                            defaultValue={table.getState().pagination.pageIndex + 1}
-                            onChange={e => {
-                                const page = e.target.value ? Number(e.target.value) - 1 : 0
-                                table.setPageIndex(page)
-                            }}
-                            className="border p-1 rounded w-16"
-                        />
-                    </span>
-                    <select
-                        value={table.getState().pagination.pageSize}
-                        onChange={e => {
-                            table.setPageSize(Number(e.target.value))
-                        }}
-                    >
-                        {[10, 20, 30, 40, 50].map(pageSize => (
-                            <option key={pageSize} value={pageSize}>
-                                Show {pageSize}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-                <div>{table.getPrePaginationRowModel().rows.length} Rows</div>
-                <div>
-                    <button onClick={() => rerender()}>Force Rerender</button>
-                </div>
-                <div>
-                    <button onClick={() => refreshData()}>Refresh Data</button>
-                </div>
-                <pre>
-                    {JSON.stringify(
-                        { columnFilters: table.getState().columnFilters },
-                        null,
-                        2
-                    )}
-                </pre>
+
             </div>
         </div>
     )
@@ -316,9 +293,12 @@ function Filter({ column }: { column: Column<any, unknown> }) {
         >
             {/* See faceted column filters example for dynamic select options */}
             <option value="">All</option>
-            <option value="complicated">complicated</option>
-            <option value="relationship">relationship</option>
-            <option value="single">single</option>
+            <option value="Quotation">Cotações</option>
+            <option value="Opened">Em Aberto</option>
+            <option value="Approved">Aprovadas</option>
+            <option value="Denied">Recusadas</option>
+            <option value="Canceled">Canceladas</option>
+
         </select>
     ) : (
         <DebouncedInput
