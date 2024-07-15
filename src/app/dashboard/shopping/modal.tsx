@@ -1,14 +1,17 @@
 'use client'
+import { api } from "@/services/api";
+import { request } from "@/services/request";
 import { Banknote, Boxes, Calendar, FileQuestion, FileWarning, Trash2, X } from "lucide-react";
 import { FormEvent, useState } from "react";
+import { useMutation } from "react-query";
 
 interface RequestModalProps {
     closeRequestModal: () => void;
     onRequestClose: () => void;
-    onSave: (data: any) => void;
+    onSuccess: () => void;
 }
 
-export function Modal({ closeRequestModal, onRequestClose, onSave }: RequestModalProps) {
+export function Modal({ closeRequestModal, onRequestClose, onSuccess }: RequestModalProps) {
     const [company, setCompany] = useState('');
     const [department, setDepartment] = useState('');
     const [approver, setApprover] = useState('');
@@ -27,20 +30,36 @@ export function Modal({ closeRequestModal, onRequestClose, onSave }: RequestModa
             return;
         }
 
+        const mutation = useMutation(request, {
+            onSuccess: () => {
+                onSuccess()
+                onRequestClose()
+            },
+            onError: (error) => {
+                alert('Erro ao criar requisiçao' + error)
+            }
+        })
+
+        function handleSubmit(e: FormEvent) {
+            e.preventDefault()
+
+            if (!company || !department || !approver || !requiredDate || !internalNote || !externalNote || !product || (!unitPrice || !quantity)) {
+                alert('Todos os campos obrigatórios devem ser preenchidos.');
+                return;
+            }
+        }
+
         const requestData = {
             company,
             department,
             approver,
             requiredDate,
-            internalNote,
-            externalNote,
             product,
             unitPrice,
             quantity,
         };
 
-        onSave(requestData);
-        onRequestClose();
+        mutation.mutate(requestData);
     };
 
     return (

@@ -3,6 +3,7 @@
 import { api } from '@/services/api'
 import { useRouter } from 'next/navigation'
 import { createContext, ReactNode, useState, useEffect } from 'react'
+import { QueryClient, QueryClientProvider } from 'react-query'
 
 interface UserProps {
     email: string
@@ -20,6 +21,8 @@ export type AuthContextProps = {
     logout: () => void
     isLoadingContext: boolean
 }
+
+const queryClient = new QueryClient()
 
 export const AuthContext = createContext<AuthContextProps>({} as AuthContextProps)
 
@@ -69,8 +72,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, isLoadingContext }}>
-            {children}
-        </AuthContext.Provider>
+        <QueryClientProvider client={queryClient}>
+            <AuthContext.Provider value={{ user, login, logout, isLoadingContext }}>
+                {children}
+            </AuthContext.Provider>
+        </QueryClientProvider>
     )
 }
